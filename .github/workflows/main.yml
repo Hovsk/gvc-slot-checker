@@ -2,13 +2,29 @@ name: GVC Slot Checker
 
 on:
   schedule:
-    - cron: '45-59/5 4 * * 1-5'
-    - cron: '*/5 5-6 * * 1-5'
-    - cron: '0 7 * * 1-5'
+    # All times Yerevan (UTC+4), Mon-Fri only
+    # 7:00-8:00 AM — every 5 min
+    - cron: '*/5 3 * * 1-5'
+    # 8:00-10:00 AM — every 3 min (most critical)
+    - cron: '*/3 4-5 * * 1-5'
+    # 10:00 AM-12:00 PM — every 5 min
+    - cron: '*/5 6-7 * * 1-5'
+    # 12:00-3:00 PM — every 10 min
+    - cron: '*/10 8-10 * * 1-5'
+    # 6:00-9:00 PM — every 15 min
+    - cron: '*/15 14-16 * * 1-5'
   workflow_dispatch:
     inputs:
       test_mode:
         description: 'Run in test mode?'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      force_slot:
+        description: 'Simulate slot found? (tests full alert)'
         required: false
         default: 'false'
         type: choice
@@ -37,4 +53,5 @@ jobs:
           GVC_AUTH_TOKEN:      ${{ secrets.GVC_AUTH_TOKEN }}
           GVC_COOKIE_SESSION:  ${{ secrets.GVC_COOKIE_SESSION }}
           TEST_MODE:        ${{ github.event.inputs.test_mode || 'false' }}
+          FORCE_SLOT:       ${{ github.event.inputs.force_slot || 'false' }}
         run: php checker.php
