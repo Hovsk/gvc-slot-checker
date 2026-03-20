@@ -2,8 +2,6 @@ name: GVC Slot Checker
 
 on:
   schedule:
-    # TEMPORARY TEST — every 5 min 15:30-16:30 Yerevan today (11:00-12:30 UTC)
-    - cron: '*/5 11-12 * * *'
     # All times Yerevan (UTC+4), Mon-Fri only
     # 7:00 AM-12:00 PM — every 5 min (critical morning window)
     - cron: '*/5 3-7 * * 1-5'
