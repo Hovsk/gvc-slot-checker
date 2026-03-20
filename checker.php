@@ -45,7 +45,11 @@ function request(string $url, array $post = []): array {
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_COOKIE         => "JSESSIONID={$GVC_SESSION}",
+        CURLOPT_COOKIE         => implode('; ', array_filter([
+            "JSESSIONID={$GVC_SESSION}",
+            getenv('GVC_AUTH_TOKEN')    ? "auth_token="    . getenv('GVC_AUTH_TOKEN')    : '',
+            getenv('GVC_COOKIE_SESSION') ? "cookiesession1=" . getenv('GVC_COOKIE_SESSION') : '',
+        ])),
         CURLOPT_HTTPHEADER     => [
             'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'Accept: application/json, text/html, */*',
