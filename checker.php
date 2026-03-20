@@ -5,6 +5,7 @@ $TELEGRAM_CHAT_ID = getenv('TELEGRAM_CHAT_ID');
 $GVC_SESSION      = getenv('GVC_SESSION');
 $GVC_BASE         = 'https://am-gr-services.gvcworld.eu';
 $TEST_MODE        = getenv('TEST_MODE') === 'true';
+$FORCE_SLOT       = getenv('FORCE_SLOT') === 'true';
 
 function getDates(): array {
     $dates = [];
@@ -20,13 +21,16 @@ function getDates(): array {
 
 function telegram(string $msg): void {
     global $TELEGRAM_TOKEN, $TELEGRAM_CHAT_ID;
+
+    // Send the main alert message
     $ch = curl_init("https://api.telegram.org/bot{$TELEGRAM_TOKEN}/sendMessage");
     curl_setopt_array($ch, [
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => json_encode([
-            'chat_id'    => $TELEGRAM_CHAT_ID,
-            'text'       => $msg,
-            'parse_mode' => 'HTML',
+            'chat_id'              => $TELEGRAM_CHAT_ID,
+            'text'                 => $msg,
+            'parse_mode'           => 'HTML',
+            'disable_notification' => false,
         ]),
         CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
         CURLOPT_RETURNTRANSFER => true,
@@ -35,8 +39,68 @@ function telegram(string $msg): void {
     $result = curl_exec($ch);
     curl_close($ch);
     $ok = json_decode((string)$result, true)['ok'] ?? false;
+    $msgId = json_decode((string)$result, true)['result']['message_id'] ?? null;
     echo "Telegram " . ($ok ? "✓ sent" : "✗ failed") . ": " . substr($msg, 0, 60) . "\n";
     if (!$ok) echo "Response: {$result}\n";
+
+    // Pin the message so it appears at top of chat
+    if ($msgId) {
+        $pin = curl_init("https://api.telegram.org/bot{$TELEGRAM_TOKEN}/pinChatMessage");
+        curl_setopt_array($pin, [
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => json_encode([
+                'chat_id'              => $TELEGRAM_CHAT_ID,
+                'message_id'           => $msgId,
+                'disable_notification' => false,
+            ]),
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+        ]);
+        curl_exec($pin);
+        curl_close($pin);
+        echo "Telegram: message pinned\n";
+    }
+
+    // Send 3 follow-up buzz messages with 2s gap to keep alerting
+    for ($i = 1; $i <= 3; $i++) {
+        sleep(2);
+        $buzz = curl_init("https://api.telegram.org/bot{$TELEGRAM_TOKEN}/sendMessage");
+        curl_setopt_array($buzz, [
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => json_encode([
+                'chat_id'              => $TELEGRAM_CHAT_ID,
+                'text'                 => "🔴 SLOT STILL AVAILABLE — book it! ({$i}/3)",
+                'disable_notification' => false,
+            ]),
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+        ]);
+        curl_exec($buzz);
+        curl_close($buzz);
+        echo "Telegram: buzz {$i}/3 sent\n";
+    }
+}
+
+function telegramSilent(string $msg): void {
+    global $TELEGRAM_TOKEN, $TELEGRAM_CHAT_ID;
+    $ch = curl_init("https://api.telegram.org/bot{$TELEGRAM_TOKEN}/sendMessage");
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => json_encode([
+            'chat_id'              => $TELEGRAM_CHAT_ID,
+            'text'                 => $msg,
+            'parse_mode'           => 'HTML',
+            'disable_notification' => true,  // silent!
+        ]),
+        CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 10,
+    ]);
+    curl_exec($ch);
+    curl_close($ch);
+    echo "Telegram silent: " . substr($msg, 0, 60) . "\n";
 }
 
 function request(string $url, array $post = []): array {
@@ -250,13 +314,9 @@ foreach ($dates as $date) {
 
 if (!$found) {
     echo "No slots found.\n";
-    $utcHour = (int)gmdate('H');
-    $utcMin  = (int)gmdate('i');
-    if ($utcHour === 4 && $utcMin < 50) {
-        telegram(
-            "👁️ <b>GVC Watcher started</b>\n" .
-            "Checking " . count($dates) . " dates every 5 min\n" .
-            "Range: {$dates[0]} → " . end($dates)
-        );
-    }
+    // Silent notification after every scan
+    telegramSilent(
+        "👁 Checked " . count($dates) . " dates — no slots\n" .
+        date('H:i') . " · " . $dates[0] . " → " . end($dates)
+    );
 }
