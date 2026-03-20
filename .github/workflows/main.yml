@@ -3,16 +3,10 @@ name: GVC Slot Checker
 on:
   schedule:
     # All times Yerevan (UTC+4), Mon-Fri only
-    # 7:00-8:00 AM — every 5 min
-    - cron: '*/5 3 * * 1-5'
-    # 8:00-10:00 AM — every 3 min (most critical)
-    - cron: '*/3 4-5 * * 1-5'
-    # 10:00 AM-12:00 PM — every 5 min
-    - cron: '*/5 6-7 * * 1-5'
-    # 12:00-3:00 PM — every 10 min
-    - cron: '*/10 8-10 * * 1-5'
-    # 6:00-9:00 PM — every 15 min
-    - cron: '*/15 14-16 * * 1-5'
+    # 7:00 AM-12:00 PM — every 5 min (critical morning window)
+    - cron: '*/5 3-7 * * 1-5'
+    # 7:00 PM-3:00 AM — every 30 min (night watch, UTC 15:00-23:00)
+    - cron: '*/12 15-23 * * 1-5'
   workflow_dispatch:
     inputs:
       test_mode:
